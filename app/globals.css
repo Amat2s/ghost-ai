@@ -131,3 +131,10 @@
     @apply font-sans;
   }
 }
+
+/* Force Clerk UI to inherit the app font */
+[data-clerk-ui],
+.cl-rootBox,
+.cl-card {
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif !important;
+}
