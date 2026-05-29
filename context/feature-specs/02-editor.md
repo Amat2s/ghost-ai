@@ -23,7 +23,7 @@ Requirements:
 - opening it should not push page content
 - slides in from the left
 - accepts `isOpen` prop
-header with `Projects` title + close button
+- header with `Projects` title + close button
 - shadcn `Tabs`:
     - My Projects
     - Shared

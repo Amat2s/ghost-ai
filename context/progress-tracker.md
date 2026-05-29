@@ -4,24 +4,25 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Feature 02: Editor Chrome — Complete
+- Feature 03: Auth — Complete
 
 ## Current Goal
 
-- Define the immediate implementation goal here.
+- Feature 04: Projects — TBD
 
 ## Completed
 
 - **01-design-system**: shadcn/ui installed and configured (Tailwind v4 detected), 7 UI components added (Button, Card, Dialog, Input, Tabs, Textarea, ScrollArea), lucide-react installed, `lib/utils.ts` with `cn()` helper created, dark theme CSS variables and `@theme inline` token mappings wired into `globals.css`. TypeScript check passes with zero errors.
 - **02-editor**: `components/editor/editor-navbar.tsx` (fixed top navbar, sidebar toggle with `PanelLeftOpen`/`PanelLeftClose`, dark bg + bottom border) and `components/editor/project-sidebar.tsx` (floating overlay, slides from left, `Projects` header + close button, My Projects / Shared tabs with empty states, full-width New Project button). Dialog pattern from Feature 01 already supports title/description/footer actions. TypeScript check passes with zero errors.
+- **03-auth**: `@clerk/nextjs` v7 + `@clerk/ui` v1.14.0 installed. `proxy.ts` at root uses `clerkMiddleware` + `createRouteMatcher` to protect all routes except `/sign-in(.*)` and `/sign-up(.*)`. `ClerkProvider` wraps root layout with `ui={ui}` from `@clerk/ui` and `appearance={{ theme: dark, variables: { ... } }}` — CSS variable overrides for all colors, no hardcoded hex. `/sign-in/[[...sign-in]]` and `/sign-up/[[...sign-up]]` pages use two-panel layout (left: logo + tagline + feature list; right: Clerk form; small screens: form only). `/` redirects authenticated users to `/editor`, unauthenticated to `/sign-in`. `app/editor/page.tsx` created as the protected editor workspace. `UserButton` added to editor navbar right section. `npm run build` passes.
 
 ## In Progress
 
-- None yet.
+- None.
 
 ## Next Up
 
-- Add the next planned feature unit here.
+- Feature 04: Projects (creation, ownership, project list)
 
 ## Open Questions
 
@@ -37,3 +38,5 @@ Update this file whenever the current phase, active feature, or implementation s
 
 - Next.js 16 with Tailwind v4. Shadcn components in `components/ui/` must not be modified after generation.
 - shadcn CLI version 4.8.2 was used.
+- Next.js 16 renames middleware to **Proxy** — use `proxy.ts` (not `middleware.ts`) at the project root. Export the function as `default` or named `proxy`.
+- `@clerk/ui` v1.14.0 provides `dark` theme from `@clerk/ui/themes`. Pass `ui={ui}` to `ClerkProvider` and use `appearance={{ theme: dark, variables: { ... } }}` (NOT `baseTheme` — that's the old @clerk/themes API).
