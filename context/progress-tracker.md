@@ -4,17 +4,18 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Feature 03: Auth — Complete
+- Feature 05: (TBD)
 
 ## Current Goal
 
-- Feature 04: Projects — TBD
+- Feature 05: TBD
 
 ## Completed
 
 - **01-design-system**: shadcn/ui installed and configured (Tailwind v4 detected), 7 UI components added (Button, Card, Dialog, Input, Tabs, Textarea, ScrollArea), lucide-react installed, `lib/utils.ts` with `cn()` helper created, dark theme CSS variables and `@theme inline` token mappings wired into `globals.css`. TypeScript check passes with zero errors.
 - **02-editor**: `components/editor/editor-navbar.tsx` (fixed top navbar, sidebar toggle with `PanelLeftOpen`/`PanelLeftClose`, dark bg + bottom border) and `components/editor/project-sidebar.tsx` (floating overlay, slides from left, `Projects` header + close button, My Projects / Shared tabs with empty states, full-width New Project button). Dialog pattern from Feature 01 already supports title/description/footer actions. TypeScript check passes with zero errors.
 - **03-auth**: `@clerk/nextjs` v7 + `@clerk/ui` v1.14.0 installed. `proxy.ts` at root uses `clerkMiddleware` + `createRouteMatcher` to protect all routes except `/sign-in(.*)` and `/sign-up(.*)`. `ClerkProvider` wraps root layout with `ui={ui}` from `@clerk/ui` and `appearance={{ theme: dark, variables: { ... } }}` — CSS variable overrides for all colors, no hardcoded hex. `/sign-in/[[...sign-in]]` and `/sign-up/[[...sign-up]]` pages use two-panel layout (left: logo + tagline + feature list; right: Clerk form; small screens: form only). `/` redirects authenticated users to `/editor`, unauthenticated to `/sign-in`. `app/editor/page.tsx` created as the protected editor workspace. `UserButton` added to editor navbar right section. `npm run build` passes.
+- **04-project-dialogs**: Editor home screen with heading, description, and New Project button. `lib/mock-projects.ts` — `MockProject` interface + 3 mock entries (2 owned, 1 shared). `hooks/use-project-dialogs.ts` — dedicated hook managing dialog type, selected project, create/rename form state, and loading state. `components/editor/project-dialogs.tsx` — `CreateProjectDialog` (name input + live slug preview), `RenameProjectDialog` (prefilled input, Enter submits, autofocus), `DeleteProjectDialog` (destructive confirm, no input). `ProjectSidebar` updated with project items, hover-reveal rename/delete actions for owned projects only, shared tab shows items without actions, mobile backdrop scrim. TypeScript check passes with zero errors.
 
 ## In Progress
 
@@ -22,7 +23,7 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Next Up
 
-- Feature 04: Projects (creation, ownership, project list)
+- Feature 05: (TBD)
 
 ## Open Questions
 
