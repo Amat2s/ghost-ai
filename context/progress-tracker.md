@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Feature 05: (TBD)
+- Feature 06: (TBD)
 
 ## Current Goal
 
-- Feature 05: TBD
+- Feature 06: TBD
 
 ## Completed
 
@@ -16,6 +16,7 @@ Update this file whenever the current phase, active feature, or implementation s
 - **02-editor**: `components/editor/editor-navbar.tsx` (fixed top navbar, sidebar toggle with `PanelLeftOpen`/`PanelLeftClose`, dark bg + bottom border) and `components/editor/project-sidebar.tsx` (floating overlay, slides from left, `Projects` header + close button, My Projects / Shared tabs with empty states, full-width New Project button). Dialog pattern from Feature 01 already supports title/description/footer actions. TypeScript check passes with zero errors.
 - **03-auth**: `@clerk/nextjs` v7 + `@clerk/ui` v1.14.0 installed. `proxy.ts` at root uses `clerkMiddleware` + `createRouteMatcher` to protect all routes except `/sign-in(.*)` and `/sign-up(.*)`. `ClerkProvider` wraps root layout with `ui={ui}` from `@clerk/ui` and `appearance={{ theme: dark, variables: { ... } }}` — CSS variable overrides for all colors, no hardcoded hex. `/sign-in/[[...sign-in]]` and `/sign-up/[[...sign-up]]` pages use two-panel layout (left: logo + tagline + feature list; right: Clerk form; small screens: form only). `/` redirects authenticated users to `/editor`, unauthenticated to `/sign-in`. `app/editor/page.tsx` created as the protected editor workspace. `UserButton` added to editor navbar right section. `npm run build` passes.
 - **04-project-dialogs**: Editor home screen with heading, description, and New Project button. `lib/mock-projects.ts` — `MockProject` interface + 3 mock entries (2 owned, 1 shared). `hooks/use-project-dialogs.ts` — dedicated hook managing dialog type, selected project, create/rename form state, and loading state. `components/editor/project-dialogs.tsx` — `CreateProjectDialog` (name input + live slug preview), `RenameProjectDialog` (prefilled input, Enter submits, autofocus), `DeleteProjectDialog` (destructive confirm, no input). `ProjectSidebar` updated with project items, hover-reveal rename/delete actions for owned projects only, shared tab shows items without actions, mobile backdrop scrim. TypeScript check passes with zero errors.
+- **05-prisma**: `prisma/models/project.prisma` — `ProjectStatus` enum (`DRAFT`/`ARCHIVED`), `Project` model (id, ownerId, name, optional description, status, optional canvasJsonPath, timestamps; indexes on ownerId and createdAt), `ProjectCollaborator` model (id, projectId, email, createdAt; cascade delete relation; unique on projectId/email; indexes on email and projectId/createdAt). `lib/prisma.ts` — cached `PrismaClient` singleton on `globalThis` in development; branches on `DATABASE_URL`: `prisma+postgres://` → `{ accelerateUrl }`, otherwise → `PrismaPg` adapter. Migration `20260530020346_add_projects` applied. Client generated to `app/generated/prisma/`. `npm run build` passes with zero errors.
 
 ## In Progress
 
@@ -23,7 +24,7 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Next Up
 
-- Feature 05: (TBD)
+- Feature 06: (TBD)
 
 ## Open Questions
 
@@ -41,3 +42,6 @@ Update this file whenever the current phase, active feature, or implementation s
 - shadcn CLI version 4.8.2 was used.
 - Next.js 16 renames middleware to **Proxy** — use `proxy.ts` (not `middleware.ts`) at the project root. Export the function as `default` or named `proxy`.
 - `@clerk/ui` v1.14.0 provides `dark` theme from `@clerk/ui/themes`. Pass `ui={ui}` to `ClerkProvider` and use `appearance={{ theme: dark, variables: { ... } }}` (NOT `baseTheme` — that's the old @clerk/themes API).
+- Prisma 7 uses `provider = "prisma-client"` generator (not `prisma-client-js`). Generated output at `app/generated/prisma/`; main import is `app/generated/prisma/client.ts` (no `index.ts`). Constructor requires an argument: `{ adapter }` for direct connections, `{ accelerateUrl }` for Accelerate.
+- `prisma.config.ts` at project root uses `schema: "prisma/"` for multi-file schema discovery — no `--schema` flag needed on CLI commands.
+- `prisma migrate dev` does NOT auto-run `prisma generate` in v7 — run both separately.
