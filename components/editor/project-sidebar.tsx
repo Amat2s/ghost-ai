@@ -1,16 +1,18 @@
-"use client";
+"use client"
 
-import { Pencil, Plus, Trash2, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MOCK_PROJECTS, type MockProject } from "@/lib/mock-projects";
+import { Pencil, Plus, Trash2, X } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import type { ProjectData } from "@/lib/projects"
 
 interface ProjectSidebarProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onNewProject: () => void;
-  onRename: (project: MockProject) => void;
-  onDelete: (project: MockProject) => void;
+  isOpen: boolean
+  onClose: () => void
+  ownedProjects: ProjectData[]
+  sharedProjects: ProjectData[]
+  onNewProject: () => void
+  onRename: (project: ProjectData) => void
+  onDelete: (project: ProjectData) => void
 }
 
 function ProjectItem({
@@ -18,56 +20,53 @@ function ProjectItem({
   onRename,
   onDelete,
 }: {
-  project: MockProject;
-  onRename: (project: MockProject) => void;
-  onDelete: (project: MockProject) => void;
+  project: ProjectData
+  onRename: (project: ProjectData) => void
+  onDelete: (project: ProjectData) => void
 }) {
   return (
     <div className="group flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-subtle cursor-pointer">
       <span className="flex-1 truncate text-sm text-copy-primary">
         {project.name}
       </span>
-      {project.isOwned && (
-        <div className="flex shrink-0 items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRename(project);
-            }}
-            aria-label="Rename project"
-          >
-            <Pencil className="h-3 w-3" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(project);
-            }}
-            aria-label="Delete project"
-            className="text-destructive hover:text-destructive"
-          >
-            <Trash2 className="h-3 w-3" />
-          </Button>
-        </div>
-      )}
+      <div className="flex shrink-0 items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          onClick={(e) => {
+            e.stopPropagation()
+            onRename(project)
+          }}
+          aria-label="Rename project"
+        >
+          <Pencil className="h-3 w-3" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete(project)
+          }}
+          aria-label="Delete project"
+          className="text-destructive hover:text-destructive"
+        >
+          <Trash2 className="h-3 w-3" />
+        </Button>
+      </div>
     </div>
-  );
+  )
 }
 
 export function ProjectSidebar({
   isOpen,
   onClose,
+  ownedProjects,
+  sharedProjects,
   onNewProject,
   onRename,
   onDelete,
 }: ProjectSidebarProps) {
-  const myProjects = MOCK_PROJECTS.filter((p) => p.isOwned);
-  const sharedProjects = MOCK_PROJECTS.filter((p) => !p.isOwned);
-
   return (
     <>
       {isOpen && (
@@ -105,13 +104,13 @@ export function ProjectSidebar({
               <TabsTrigger value="shared">Shared</TabsTrigger>
             </TabsList>
             <TabsContent value="my-projects" className="flex-1 overflow-y-auto">
-              {myProjects.length === 0 ? (
+              {ownedProjects.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12">
                   <p className="text-sm text-copy-muted">No projects yet</p>
                 </div>
               ) : (
                 <div className="flex flex-col gap-0.5 py-1">
-                  {myProjects.map((project) => (
+                  {ownedProjects.map((project) => (
                     <ProjectItem
                       key={project.id}
                       project={project}
@@ -153,5 +152,5 @@ export function ProjectSidebar({
         </div>
       </aside>
     </>
-  );
+  )
 }

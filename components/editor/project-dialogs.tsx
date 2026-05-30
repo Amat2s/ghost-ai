@@ -10,23 +10,14 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import type { MockProject } from "@/lib/mock-projects"
-
-function toSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
-}
+import type { ProjectData } from "@/lib/projects"
 
 interface CreateProjectDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   name: string
   onNameChange: (name: string) => void
+  roomIdPreview: string
   onSubmit: () => void
   isLoading: boolean
 }
@@ -36,11 +27,10 @@ export function CreateProjectDialog({
   onOpenChange,
   name,
   onNameChange,
+  roomIdPreview,
   onSubmit,
   isLoading,
 }: CreateProjectDialogProps) {
-  const slug = toSlug(name)
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -54,10 +44,11 @@ export function CreateProjectDialog({
             placeholder="Project name"
             value={name}
             onChange={(e) => onNameChange(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") onSubmit() }}
             autoFocus
           />
-          {name.length > 0 && (
-            <p className="font-mono text-xs text-copy-muted">{slug || "—"}</p>
+          {roomIdPreview && (
+            <p className="font-mono text-xs text-copy-muted">{roomIdPreview}</p>
           )}
         </div>
         <DialogFooter showCloseButton>
@@ -73,7 +64,7 @@ export function CreateProjectDialog({
 interface RenameProjectDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  project: MockProject | null
+  project: ProjectData | null
   name: string
   onNameChange: (name: string) => void
   onSubmit: () => void
@@ -105,9 +96,7 @@ export function RenameProjectDialog({
           className="text-copy-primary"
           value={name}
           onChange={(e) => onNameChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") onSubmit()
-          }}
+          onKeyDown={(e) => { if (e.key === "Enter") onSubmit() }}
           autoFocus
         />
         <DialogFooter showCloseButton>
@@ -123,7 +112,7 @@ export function RenameProjectDialog({
 interface DeleteProjectDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  project: MockProject | null
+  project: ProjectData | null
   onConfirm: () => void
   isLoading: boolean
 }
