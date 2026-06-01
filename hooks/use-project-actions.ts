@@ -2,23 +2,10 @@
 
 import { useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
+import { toSlug, shortId } from "@/lib/slug"
 import type { ProjectData } from "@/lib/projects"
 
 type DialogType = "create" | "rename" | "delete" | null
-
-function toSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
-}
-
-function shortId(): string {
-  return Math.random().toString(36).slice(2, 6)
-}
 
 export function useProjectActions() {
   const router = useRouter()
@@ -67,7 +54,7 @@ export function useProjectActions() {
       if (!res.ok) return
       const project: ProjectData = await res.json()
       closeDialog()
-      router.push(`/editor/${project.id}`)
+      router.push(`/editor/${project.slug}`)
     } finally {
       setIsLoading(false)
     }
@@ -99,9 +86,9 @@ export function useProjectActions() {
       })
       if (!res.ok) return
       const segments = pathname.split("/")
-      const activeProjectId = segments[1] === "editor" ? segments[2] : undefined
+      const activeSlug = segments[1] === "editor" ? segments[2] : undefined
       closeDialog()
-      if (activeProjectId && activeProjectId === selectedProject.id) {
+      if (activeSlug && activeSlug === selectedProject.slug) {
         router.push("/editor")
       } else {
         router.refresh()

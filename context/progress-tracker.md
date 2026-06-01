@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Feature 07: Complete
+- Feature 09: Complete
 
 ## Current Goal
 
-- Feature 07: Wire editor home sidebar and dialogs to real project API
+- Feature 09: Share dialog with collaborator invite/remove and Clerk enrichment
 
 ## Completed
 
@@ -19,6 +19,8 @@ Update this file whenever the current phase, active feature, or implementation s
 - **05-prisma**: `prisma/models/project.prisma` — `ProjectStatus` enum (`DRAFT`/`ARCHIVED`), `Project` model (id, ownerId, name, optional description, status, optional canvasJsonPath, timestamps; indexes on ownerId and createdAt), `ProjectCollaborator` model (id, projectId, email, createdAt; cascade delete relation; unique on projectId/email; indexes on email and projectId/createdAt). `lib/prisma.ts` — cached `PrismaClient` singleton on `globalThis` in development; branches on `DATABASE_URL`: `prisma+postgres://` → `{ accelerateUrl }`, otherwise → `PrismaPg` adapter. Migration `20260530020346_add_projects` applied. Client generated to `app/generated/prisma/`. `npm run build` passes with zero errors.
 - **06-project-apis**: `app/api/projects/route.ts` — `GET` lists all projects owned by the authenticated user (ordered by `createdAt` desc); `POST` creates a project with the Clerk user ID as `ownerId`, defaulting name to `Untitled Project`. `app/api/projects/[projectId]/route.ts` — `PATCH` renames a project (owner-only, 403 otherwise); `DELETE` deletes a project (owner-only, 403 otherwise). Both files return 401 for unauthenticated requests and 404 when the project doesn't exist. UI not wired. `npm run build` passes with zero errors.
 - **07-wire-editor-home**: `lib/projects.ts` — `ProjectData` interface (`id`, `name`) + `getOwnedProjects` / `getSharedProjects` server helpers (Prisma select, Clerk `auth()` / `currentUser()` for email). `hooks/use-project-actions.ts` — replaces `use-project-dialogs.ts`; manages dialog state + real API mutations (`POST`, `PATCH`, `DELETE`); slug + short suffix generate `roomIdPreview` for the create dialog; `handleCreate` navigates to `/editor/[id]`; `handleRename` calls `router.refresh()`; `handleDelete` redirects to `/editor` if deleting the active workspace (derived from `usePathname()`), otherwise refreshes. `components/editor/editor-home-client.tsx` — client shell holding sidebar toggle + dialog state; receives `ownedProjects`/`sharedProjects` as props from the server component. `app/editor/page.tsx` — converted to async server component; fetches owned and shared projects in parallel and passes them to `EditorHomeClient`. `components/editor/project-sidebar.tsx` and `project-dialogs.tsx` updated to use `ProjectData` instead of `MockProject`; create dialog accepts `roomIdPreview` prop. `npm run build` passes with zero errors.
+- **08-editor-workspace-shell**: `lib/project-access.ts` — `getProjectWithAccess(projectId)` server helper; resolves Clerk `userId` + primary email, queries Prisma for owner or collaborator match, returns `{ project, isOwner }` or `null`. `components/editor/access-denied.tsx` — centered lock icon, short message, link back to `/editor`. `app/editor/[roomId]/page.tsx` — async server component; redirects unauthenticated users to `/sign-in`, shows `AccessDenied` for missing or unauthorized projects, fetches owned/shared projects in parallel and renders `WorkspaceClient`. `components/editor/workspace-client.tsx` — client shell with sidebar + AI sidebar toggle state, `EditorNavbar` (project name + share + AI toggle), `ProjectSidebar` (active room highlighted), canvas placeholder, collapsible right AI sidebar placeholder, full dialog set from `useProjectActions`. `components/editor/editor-navbar.tsx` extended with optional `projectName`, `isAiSidebarOpen`, `onToggleAiSidebar` props — adds Share button and right panel toggle for workspace context. `components/editor/project-sidebar.tsx` extended with optional `activeProjectId` prop — highlights the active project in both owned and shared tabs. `npm run build` passes with zero errors.
+- **09-share-dialog**: `app/api/projects/[projectId]/collaborators/route.ts` — `GET` lists owner + collaborators enriched with Clerk display name + avatar (parallel `getUser` for owner and `getUserList` for collaborators); `POST` invites by email (owner only, upsert); `DELETE` removes by email from body (owner only). `components/editor/share-dialog.tsx` — client dialog; title "Share project" with description; workspace link card with Copy link button; email input with mail icon prefix and branded Invite button (owner only); "People with access" list with total count; each person in a rounded card — owner shows OWNER badge (brand teal), collaborators show COLLABORATOR badge (muted) with trash remove button; `CollaboratorAvatar` renders Clerk image or initials fallback. `components/editor/editor-navbar.tsx` extended with `onShare` prop wired to the Share button. `components/editor/workspace-client.tsx` — `isOwner` prop added; `isShareOpen` state drives `ShareDialog`. `app/editor/[roomId]/page.tsx` — passes `access.isOwner` to `WorkspaceClient`. `npm run build` passes with zero errors.
 
 ## In Progress
 
@@ -26,7 +28,7 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Next Up
 
-- Feature 08: (TBD)
+- Feature 10: (TBD)
 
 ## Open Questions
 

@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { Pencil, Plus, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -10,6 +11,7 @@ interface ProjectSidebarProps {
   onClose: () => void
   ownedProjects: ProjectData[]
   sharedProjects: ProjectData[]
+  activeProjectId?: string
   onNewProject: () => void
   onRename: (project: ProjectData) => void
   onDelete: (project: ProjectData) => void
@@ -17,15 +19,20 @@ interface ProjectSidebarProps {
 
 function ProjectItem({
   project,
+  isActive,
   onRename,
   onDelete,
 }: {
   project: ProjectData
+  isActive?: boolean
   onRename: (project: ProjectData) => void
   onDelete: (project: ProjectData) => void
 }) {
   return (
-    <div className="group flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-subtle cursor-pointer">
+    <Link
+      href={`/editor/${project.slug}`}
+      className={`group flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-subtle ${isActive ? "bg-subtle" : ""}`}
+    >
       <span className="flex-1 truncate text-sm text-copy-primary">
         {project.name}
       </span>
@@ -34,6 +41,7 @@ function ProjectItem({
           variant="ghost"
           size="icon-xs"
           onClick={(e) => {
+            e.preventDefault()
             e.stopPropagation()
             onRename(project)
           }}
@@ -45,6 +53,7 @@ function ProjectItem({
           variant="ghost"
           size="icon-xs"
           onClick={(e) => {
+            e.preventDefault()
             e.stopPropagation()
             onDelete(project)
           }}
@@ -54,7 +63,7 @@ function ProjectItem({
           <Trash2 className="h-3 w-3" />
         </Button>
       </div>
-    </div>
+    </Link>
   )
 }
 
@@ -63,6 +72,7 @@ export function ProjectSidebar({
   onClose,
   ownedProjects,
   sharedProjects,
+  activeProjectId,
   onNewProject,
   onRename,
   onDelete,
@@ -114,6 +124,7 @@ export function ProjectSidebar({
                     <ProjectItem
                       key={project.id}
                       project={project}
+                      isActive={project.id === activeProjectId}
                       onRename={onRename}
                       onDelete={onDelete}
                     />
@@ -129,14 +140,15 @@ export function ProjectSidebar({
               ) : (
                 <div className="flex flex-col gap-0.5 py-1">
                   {sharedProjects.map((project) => (
-                    <div
+                    <Link
                       key={project.id}
-                      className="flex items-center rounded-lg px-2 py-1.5 hover:bg-subtle cursor-pointer"
+                      href={`/editor/${project.slug}`}
+                      className={`flex items-center rounded-lg px-2 py-1.5 hover:bg-subtle ${project.id === activeProjectId ? "bg-subtle" : ""}`}
                     >
                       <span className="flex-1 truncate text-sm text-copy-primary">
                         {project.name}
                       </span>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               )}
