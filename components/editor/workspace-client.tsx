@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { Plus } from "lucide-react"
 import { EditorNavbar } from "@/components/editor/editor-navbar"
 import { ProjectSidebar } from "@/components/editor/project-sidebar"
 import {
@@ -9,17 +8,27 @@ import {
   RenameProjectDialog,
   DeleteProjectDialog,
 } from "@/components/editor/project-dialogs"
+import { ShareDialog } from "@/components/editor/share-dialog"
+import { CanvasWrapper } from "@/components/editor/canvas-wrapper"
 import { useProjectActions } from "@/hooks/use-project-actions"
-import { Button } from "@/components/ui/button"
 import type { ProjectData } from "@/lib/projects"
 
-interface EditorHomeClientProps {
+interface WorkspaceClientProps {
+  project: ProjectData
+  isOwner: boolean
   ownedProjects: ProjectData[]
   sharedProjects: ProjectData[]
 }
 
-export function EditorHomeClient({ ownedProjects, sharedProjects }: EditorHomeClientProps) {
+export function WorkspaceClient({
+  project,
+  isOwner,
+  ownedProjects,
+  sharedProjects,
+}: WorkspaceClientProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [isAiSidebarOpen, setIsAiSidebarOpen] = useState(false)
+  const [isShareOpen, setIsShareOpen] = useState(false)
   const actions = useProjectActions()
 
   return (
@@ -27,28 +36,31 @@ export function EditorHomeClient({ ownedProjects, sharedProjects }: EditorHomeCl
       <EditorNavbar
         isSidebarOpen={isSidebarOpen}
         onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
+        projectName={project.name}
+        isAiSidebarOpen={isAiSidebarOpen}
+        onToggleAiSidebar={() => setIsAiSidebarOpen((prev) => !prev)}
+        onShare={() => setIsShareOpen(true)}
       />
       <ProjectSidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         ownedProjects={ownedProjects}
         sharedProjects={sharedProjects}
+        activeProjectId={project.id}
         onNewProject={actions.openCreate}
         onRename={actions.openRename}
         onDelete={actions.openDelete}
       />
-      <main className="flex flex-1 flex-col items-center justify-center pt-12">
-        <h1 className="text-xl font-semibold text-copy-primary">
-          Create a project or open an existing one
-        </h1>
-        <p className="mt-2 text-sm text-copy-muted">
-          Start a new architecture workspace, or choose a project from the sidebar.
-        </p>
-        <Button className="mt-6" onClick={actions.openCreate}>
-          <Plus className="h-4 w-4" />
-          New project
-        </Button>
-      </main>
+      <div className="flex flex-1 overflow-hidden pt-12">
+        <main className="flex flex-1 overflow-hidden bg-base">
+          <CanvasWrapper roomId={project.id} />
+        </main>
+        {isAiSidebarOpen && (
+          <aside className="flex w-80 shrink-0 items-center justify-center border-l border-surface-border bg-elevated">
+            <p className="text-sm text-copy-muted">AI chat coming soon</p>
+          </aside>
+        )}
+      </div>
 
       <CreateProjectDialog
         open={actions.openDialog === "create"}
@@ -74,6 +86,12 @@ export function EditorHomeClient({ ownedProjects, sharedProjects }: EditorHomeCl
         project={actions.selectedProject}
         onConfirm={actions.handleDelete}
         isLoading={actions.isLoading}
+      />
+      <ShareDialog
+        projectId={project.id}
+        isOwner={isOwner}
+        open={isShareOpen}
+        onOpenChange={setIsShareOpen}
       />
     </div>
   )

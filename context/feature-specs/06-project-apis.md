@@ -11,7 +11,7 @@ Create REST endpoints for:
 
 ## Rules
 
-Use the authenticated Clerk user ID as `owerID`.
+Use the authenticated Clerk user ID as `ownerID`.
 
 When creating:
 
@@ -30,5 +30,5 @@ Keep this backend-only. Do not wire the UI yet.
 
 - routes exist for list/create/rename/delete
 - owner checks are enforced for rename/delete
-- `401` and `403` responces are handled correctly
+- `401` and `403` responses are handled correctly
 - `npm run build` passes
