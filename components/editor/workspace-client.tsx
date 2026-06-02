@@ -9,6 +9,7 @@ import {
   DeleteProjectDialog,
 } from "@/components/editor/project-dialogs"
 import { ShareDialog } from "@/components/editor/share-dialog"
+import { CanvasWrapper } from "@/components/editor/canvas-wrapper"
 import { useProjectActions } from "@/hooks/use-project-actions"
 import type { ProjectData } from "@/lib/projects"
 
@@ -51,8 +52,8 @@ export function WorkspaceClient({
         onDelete={actions.openDelete}
       />
       <div className="flex flex-1 overflow-hidden pt-12">
-        <main className="flex flex-1 items-center justify-center bg-base">
-          <p className="text-sm text-copy-muted">Canvas coming soon</p>
+        <main className="flex flex-1 overflow-hidden bg-base">
+          <CanvasWrapper roomId={project.id} />
         </main>
         {isAiSidebarOpen && (
           <aside className="flex w-80 shrink-0 items-center justify-center border-l border-surface-border bg-elevated">
@@ -66,9 +67,9 @@ export function WorkspaceClient({
         onOpenChange={(open) => { if (!open) actions.closeDialog() }}
         name={actions.createName}
         onNameChange={actions.setCreateName}
-        roomIdPreview={actions.roomIdPreview}
         onSubmit={actions.handleCreate}
         isLoading={actions.isLoading}
+        projectId={actions.createProjectId}
       />
       <RenameProjectDialog
         open={actions.openDialog === "rename"}
@@ -88,7 +89,6 @@ export function WorkspaceClient({
       />
       <ShareDialog
         projectId={project.id}
-        projectSlug={project.slug}
         isOwner={isOwner}
         open={isShareOpen}
         onOpenChange={setIsShareOpen}

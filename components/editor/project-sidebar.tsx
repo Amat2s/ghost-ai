@@ -30,7 +30,7 @@ function ProjectItem({
 }) {
   return (
     <Link
-      href={`/editor/${project.slug}`}
+      href={`/editor/${project.id}`}
       className={`group flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-subtle ${isActive ? "bg-subtle" : ""}`}
     >
       <span className="flex-1 truncate text-sm text-copy-primary">
@@ -142,7 +142,7 @@ export function ProjectSidebar({
                   {sharedProjects.map((project) => (
                     <Link
                       key={project.id}
-                      href={`/editor/${project.slug}`}
+                      href={`/editor/${project.id}`}
                       className={`flex items-center rounded-lg px-2 py-1.5 hover:bg-subtle ${project.id === activeProjectId ? "bg-subtle" : ""}`}
                     >
                       <span className="flex-1 truncate text-sm text-copy-primary">

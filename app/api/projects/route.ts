@@ -1,7 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { generateSlug } from '@/lib/slug'
+import { generateProjectId } from '@/lib/slug'
 
 export async function GET() {
   const { userId } = await auth()
@@ -26,14 +26,20 @@ export async function POST(request: Request) {
   }
 
   const body: unknown = await request.json().catch(() => ({}))
-  const rawName = body !== null && typeof body === 'object' && 'name' in body ? (body as Record<string, unknown>).name : undefined
+  const rawBody = body !== null && typeof body === 'object' ? body as Record<string, unknown> : {}
+  const rawName = rawBody.name
+  const rawId = rawBody.id
   const name = typeof rawName === 'string' && rawName.trim() ? rawName.trim() : 'Untitled Project'
 
-  const slug = generateSlug(name)
+  const slugPattern = /^[a-z0-9][a-z0-9-]*[a-z0-9]$/
+  const id =
+    typeof rawId === 'string' && rawId.length >= 3 && rawId.length <= 100 && slugPattern.test(rawId)
+      ? rawId
+      : generateProjectId(name)
 
   const project = await prisma.project.create({
-    data: { ownerId: userId, name, slug },
-    select: { id: true, name: true, slug: true },
+    data: { id, ownerId: userId, name },
+    select: { id: true, name: true },
   })
 
   return NextResponse.json(project, { status: 201 })

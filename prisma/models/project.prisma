@@ -4,10 +4,9 @@ enum ProjectStatus {
 }
 
 model Project {
-  id             String        @id @default(cuid())
+  id             String        @id
   ownerId        String        @map("owner_id")
   name           String
-  slug           String        @unique
   description    String?
   status         ProjectStatus @default(DRAFT)
   canvasJsonPath String?       @map("canvas_json_path")

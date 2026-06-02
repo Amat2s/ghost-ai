@@ -17,9 +17,9 @@ interface CreateProjectDialogProps {
   onOpenChange: (open: boolean) => void
   name: string
   onNameChange: (name: string) => void
-  roomIdPreview: string
   onSubmit: () => void
   isLoading: boolean
+  projectId: string
 }
 
 export function CreateProjectDialog({
@@ -27,9 +27,9 @@ export function CreateProjectDialog({
   onOpenChange,
   name,
   onNameChange,
-  roomIdPreview,
   onSubmit,
   isLoading,
+  projectId,
 }: CreateProjectDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -38,7 +38,7 @@ export function CreateProjectDialog({
           <DialogTitle className="text-copy-primary">New Project</DialogTitle>
           <DialogDescription className="text-copy-muted">Give your project a name to get started.</DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1.5">
           <Input
             className="text-copy-primary"
             placeholder="Project name"
@@ -47,8 +47,8 @@ export function CreateProjectDialog({
             onKeyDown={(e) => { if (e.key === "Enter") onSubmit() }}
             autoFocus
           />
-          {roomIdPreview && (
-            <p className="font-mono text-xs text-copy-muted">{roomIdPreview}</p>
+          {name.trim() && (
+            <p className="font-mono text-xs text-copy-muted">{projectId}</p>
           )}
         </div>
         <DialogFooter showCloseButton>

@@ -4,7 +4,6 @@ import { prisma } from '@/lib/prisma'
 export interface ProjectData {
   id: string
   name: string
-  slug: string
 }
 
 export async function getOwnedProjects(): Promise<ProjectData[]> {
@@ -13,7 +12,7 @@ export async function getOwnedProjects(): Promise<ProjectData[]> {
   return prisma.project.findMany({
     where: { ownerId: userId },
     orderBy: { createdAt: 'desc' },
-    select: { id: true, name: true, slug: true },
+    select: { id: true, name: true },
   })
 }
 
@@ -25,6 +24,6 @@ export async function getSharedProjects(): Promise<ProjectData[]> {
   return prisma.project.findMany({
     where: { collaborators: { some: { email } } },
     orderBy: { createdAt: 'desc' },
-    select: { id: true, name: true, slug: true },
+    select: { id: true, name: true },
   })
 }

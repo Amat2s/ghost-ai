@@ -9,9 +9,9 @@ export function toSlug(name: string): string {
 }
 
 export function shortId(): string {
-  return Math.random().toString(36).slice(2, 6)
+  return Math.random().toString(36).slice(2, 7)
 }
 
-export function generateSlug(name: string): string {
+export function generateProjectId(name: string): string {
   return `${toSlug(name) || "project"}-${shortId()}`
 }

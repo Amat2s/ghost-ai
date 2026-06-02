@@ -26,7 +26,6 @@ interface Owner {
 
 interface ShareDialogProps {
   projectId: string;
-  projectSlug: string;
   isOwner: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -34,7 +33,6 @@ interface ShareDialogProps {
 
 export function ShareDialog({
   projectId,
-  projectSlug,
   isOwner,
   open,
   onOpenChange,
@@ -106,7 +104,7 @@ export function ShareDialog({
   }
 
   function handleCopyLink() {
-    const url = `${window.location.origin}/editor/${projectSlug}`;
+    const url = `${window.location.origin}/editor/${projectId}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);

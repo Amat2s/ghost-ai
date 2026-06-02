@@ -55,9 +55,9 @@ export function EditorHomeClient({ ownedProjects, sharedProjects }: EditorHomeCl
         onOpenChange={(open) => { if (!open) actions.closeDialog() }}
         name={actions.createName}
         onNameChange={actions.setCreateName}
-        roomIdPreview={actions.roomIdPreview}
         onSubmit={actions.handleCreate}
         isLoading={actions.isLoading}
+        projectId={actions.createProjectId}
       />
       <RenameProjectDialog
         open={actions.openDialog === "rename"}
