@@ -4,12 +4,15 @@ import { Component, type ReactNode } from "react"
 import { LiveblocksProvider, RoomProvider, ClientSideSuspense } from "@liveblocks/react"
 import { ReactFlowProvider } from "@xyflow/react"
 import { Canvas } from "./canvas"
+import type { CanvasTemplate } from "./starter-templates"
 
 interface CanvasWrapperProps {
   roomId: string
+  pendingTemplate?: CanvasTemplate | null
+  onTemplateDone?: () => void
 }
 
-export function CanvasWrapper({ roomId }: CanvasWrapperProps) {
+export function CanvasWrapper({ roomId, pendingTemplate, onTemplateDone }: CanvasWrapperProps) {
   return (
     <LiveblocksProvider authEndpoint="/api/liveblocks-auth">
       <RoomProvider
@@ -19,7 +22,7 @@ export function CanvasWrapper({ roomId }: CanvasWrapperProps) {
         <ErrorBoundary fallback={<CanvasError />}>
           <ClientSideSuspense fallback={<CanvasLoading />}>
             <ReactFlowProvider>
-              <Canvas />
+              <Canvas pendingTemplate={pendingTemplate} onTemplateDone={onTemplateDone} />
             </ReactFlowProvider>
           </ClientSideSuspense>
         </ErrorBoundary>
