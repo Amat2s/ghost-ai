@@ -283,7 +283,7 @@ export function CanvasNodeComponent({ id, data, selected }: NodeProps<CanvasNode
       {toolbar}
       {resizer}
       <Handles />
-      <ShapeBody />
+      {ShapeBody()}
     </div>
   )
 }
