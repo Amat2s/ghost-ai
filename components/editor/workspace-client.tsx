@@ -10,8 +10,10 @@ import {
 } from "@/components/editor/project-dialogs"
 import { ShareDialog } from "@/components/editor/share-dialog"
 import { CanvasWrapper } from "@/components/editor/canvas-wrapper"
+import { StarterTemplatesModal } from "@/components/editor/starter-templates-modal"
 import { useProjectActions } from "@/hooks/use-project-actions"
 import type { ProjectData } from "@/lib/projects"
+import type { CanvasTemplate } from "@/components/editor/starter-templates"
 
 interface WorkspaceClientProps {
   project: ProjectData
@@ -29,6 +31,8 @@ export function WorkspaceClient({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isAiSidebarOpen, setIsAiSidebarOpen] = useState(false)
   const [isShareOpen, setIsShareOpen] = useState(false)
+  const [isTemplatesOpen, setIsTemplatesOpen] = useState(false)
+  const [pendingTemplate, setPendingTemplate] = useState<CanvasTemplate | null>(null)
   const actions = useProjectActions()
 
   return (
@@ -40,6 +44,7 @@ export function WorkspaceClient({
         isAiSidebarOpen={isAiSidebarOpen}
         onToggleAiSidebar={() => setIsAiSidebarOpen((prev) => !prev)}
         onShare={() => setIsShareOpen(true)}
+        onOpenTemplates={() => setIsTemplatesOpen(true)}
       />
       <ProjectSidebar
         isOpen={isSidebarOpen}
@@ -53,7 +58,11 @@ export function WorkspaceClient({
       />
       <div className="flex flex-1 overflow-hidden pt-12">
         <main className="flex flex-1 overflow-hidden bg-base">
-          <CanvasWrapper roomId={project.id} />
+          <CanvasWrapper
+            roomId={project.id}
+            pendingTemplate={pendingTemplate}
+            onTemplateDone={() => setPendingTemplate(null)}
+          />
         </main>
         {isAiSidebarOpen && (
           <aside className="flex w-80 shrink-0 items-center justify-center border-l border-surface-border bg-elevated">
@@ -92,6 +101,11 @@ export function WorkspaceClient({
         isOwner={isOwner}
         open={isShareOpen}
         onOpenChange={setIsShareOpen}
+      />
+      <StarterTemplatesModal
+        open={isTemplatesOpen}
+        onOpenChange={setIsTemplatesOpen}
+        onImport={(template) => setPendingTemplate(template)}
       />
     </div>
   )
