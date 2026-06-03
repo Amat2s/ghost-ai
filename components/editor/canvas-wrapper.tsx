@@ -13,9 +13,10 @@ interface CanvasWrapperProps {
   pendingTemplate?: CanvasTemplate | null
   onTemplateDone?: () => void
   onSaveStatusChange?: (status: SaveStatus) => void
+  onAiEvent?: (event: { type: string; message?: string; error?: string }) => void
 }
 
-export function CanvasWrapper({ roomId, saveRequestId, pendingTemplate, onTemplateDone, onSaveStatusChange }: CanvasWrapperProps) {
+export function CanvasWrapper({ roomId, saveRequestId, pendingTemplate, onTemplateDone, onSaveStatusChange, onAiEvent }: CanvasWrapperProps) {
   return (
     <LiveblocksProvider authEndpoint="/api/liveblocks-auth">
       <RoomProvider
@@ -31,6 +32,7 @@ export function CanvasWrapper({ roomId, saveRequestId, pendingTemplate, onTempla
                 pendingTemplate={pendingTemplate}
                 onTemplateDone={onTemplateDone}
                 onSaveStatusChange={onSaveStatusChange}
+                onAiEvent={onAiEvent}
               />
             </ReactFlowProvider>
           </ClientSideSuspense>

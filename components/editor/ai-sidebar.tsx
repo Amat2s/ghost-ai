@@ -11,11 +11,14 @@ interface Message {
   id: string
   role: "user" | "assistant"
   content: string
+  isError?: boolean
+  isStatus?: boolean
 }
 
 interface AiSidebarProps {
   isOpen: boolean
   onClose: () => void
+  projectId: string
 }
 
 const STARTER_CHIPS = [
@@ -24,20 +27,130 @@ const STARTER_CHIPS = [
   "Build a CI/CD pipeline",
 ]
 
-export function AiSidebar({ isOpen, onClose }: AiSidebarProps) {
+async function triggerDesign(
+  projectId: string,
+  prompt: string
+): Promise<{ runId: string } | { error: string }> {
+  const res = await fetch("/api/ai/design", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt, roomId: projectId, projectId }),
+  })
+  const data = await res.json()
+  if (!res.ok) return { error: data.error ?? "Request failed" }
+  return data as { runId: string }
+}
+
+export function AiSidebar({ isOpen, onClose, projectId }: AiSidebarProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
+  const [isGenerating, setIsGenerating] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
-  const handleSend = useCallback(() => {
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    const el = scrollRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [messages])
+
+  const addMessage = useCallback((msg: Omit<Message, "id">) => {
+    setMessages((prev) => [...prev, { ...msg, id: `${Date.now()}-${Math.random()}` }])
+  }, [])
+
+  const updateLastAssistantMessage = useCallback((content: string, isError = false, isStatus = false) => {
+    setMessages((prev) => {
+      const idx = [...prev].reverse().findIndex((m) => m.role === "assistant")
+      if (idx === -1) return prev
+      const realIdx = prev.length - 1 - idx
+      const updated = [...prev]
+      updated[realIdx] = { ...updated[realIdx], content, isError, isStatus }
+      return updated
+    })
+  }, [])
+
+  const handleSend = useCallback(async () => {
     const trimmed = input.trim()
-    if (!trimmed) return
-    setMessages((prev) => [
-      ...prev,
-      { id: `${Date.now()}`, role: "user", content: trimmed },
-    ])
+    if (!trimmed || isGenerating) return
+
     setInput("")
-  }, [input])
+    setIsGenerating(true)
+
+    addMessage({ role: "user", content: trimmed })
+    addMessage({ role: "assistant", content: "Starting design generation…", isStatus: true })
+
+    const result = await triggerDesign(projectId, trimmed)
+
+    if ("error" in result) {
+      updateLastAssistantMessage(`Failed to start: ${result.error}`, true, false)
+      setIsGenerating(false)
+      return
+    }
+
+    updateLastAssistantMessage("Ghost AI is working on your design…", false, true)
+
+    // Poll the run until it reaches a terminal state
+    const { runId } = result
+    let attempts = 0
+    const maxAttempts = 120 // 2 min at 1s intervals
+
+    const poll = async () => {
+      attempts++
+      if (attempts > maxAttempts) {
+        updateLastAssistantMessage("Generation is taking longer than expected. Check the canvas for updates.", false, false)
+        setIsGenerating(false)
+        return
+      }
+
+      try {
+        const tokenRes = await fetch("/api/ai/design/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ runId }),
+        })
+
+        if (!tokenRes.ok) {
+          // Token endpoint fails = run done or inaccessible
+          updateLastAssistantMessage("Design complete! Check the canvas for your architecture.", false, false)
+          setIsGenerating(false)
+          return
+        }
+
+        const { token } = await tokenRes.json()
+
+        const runRes = await fetch(`https://api.trigger.dev/api/v3/runs/${runId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+
+        if (!runRes.ok) {
+          setTimeout(poll, 1000)
+          return
+        }
+
+        const run = await runRes.json()
+
+        if (run.status === "COMPLETED") {
+          updateLastAssistantMessage("Design complete! Your architecture has been added to the canvas.", false, false)
+          setIsGenerating(false)
+        } else if (["FAILED", "CRASHED", "CANCELED", "TIMED_OUT"].includes(run.status)) {
+          updateLastAssistantMessage("Design generation failed. Please try again.", true, false)
+          setIsGenerating(false)
+        } else {
+          // Still running — update status message and poll again
+          const statusMsg =
+            run.status === "QUEUED"
+              ? "Design queued, starting soon…"
+              : "Ghost AI is designing your architecture…"
+          updateLastAssistantMessage(statusMsg, false, true)
+          setTimeout(poll, 1500)
+        }
+      } catch {
+        setTimeout(poll, 2000)
+      }
+    }
+
+    setTimeout(poll, 1500)
+  }, [input, isGenerating, projectId, addMessage, updateLastAssistantMessage])
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -47,7 +160,9 @@ export function AiSidebar({ isOpen, onClose }: AiSidebarProps) {
   }
 
   function handleChip(chip: string) {
-    setMessages([{ id: `${Date.now()}`, role: "user", content: chip }])
+    if (isGenerating) return
+    setInput(chip)
+    setTimeout(() => textareaRef.current?.focus(), 0)
   }
 
   useEffect(() => {
@@ -90,7 +205,7 @@ export function AiSidebar({ isOpen, onClose }: AiSidebarProps) {
         </TabsList>
 
         <TabsContent value="architect" className="flex flex-1 flex-col overflow-hidden mt-0">
-          <ScrollArea className="flex-1 px-4 py-3">
+          <ScrollArea className="flex-1 px-4 py-3" ref={scrollRef}>
             {messages.length === 0 ? (
               <div className="flex flex-col items-center gap-4 pt-8 text-center">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-ai/20">
@@ -99,7 +214,7 @@ export function AiSidebar({ isOpen, onClose }: AiSidebarProps) {
                 <div>
                   <p className="text-sm font-medium text-copy-primary">Ghost AI Architect</p>
                   <p className="mt-1 text-xs text-copy-muted">
-                    Describe your system and I&apos;ll help you design the architecture.
+                    Describe your system and I&apos;ll design the architecture.
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 w-full">
@@ -124,8 +239,19 @@ export function AiSidebar({ isOpen, onClose }: AiSidebarProps) {
                       </div>
                     </div>
                   ) : (
-                    <div key={msg.id} className="flex justify-start">
-                      <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-elevated border border-surface-border px-3 py-2 text-sm text-ai-text">
+                    <div key={msg.id} className="flex justify-start items-start gap-2">
+                      {msg.isStatus && (
+                        <span className="mt-2 h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-ai" />
+                      )}
+                      <div
+                        className={`max-w-[85%] rounded-2xl rounded-tl-sm px-3 py-2 text-sm ${
+                          msg.isError
+                            ? "bg-elevated border border-red-500/30 text-red-400"
+                            : msg.isStatus
+                              ? "bg-elevated border border-ai/20 text-ai-text"
+                              : "bg-elevated border border-surface-border text-ai-text"
+                        }`}
+                      >
                         {msg.content}
                       </div>
                     </div>
@@ -142,13 +268,14 @@ export function AiSidebar({ isOpen, onClose }: AiSidebarProps) {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask Ghost AI..."
-                className="flex-1 resize-none overflow-hidden bg-subtle border-surface-border text-sm"
+                placeholder={isGenerating ? "Ghost AI is working…" : "Ask Ghost AI…"}
+                disabled={isGenerating}
+                className="flex-1 resize-none overflow-hidden bg-subtle border-surface-border text-sm disabled:opacity-50"
                 style={{ minHeight: "72px", maxHeight: "160px" }}
               />
               <Button
                 onClick={handleSend}
-                disabled={!input.trim()}
+                disabled={!input.trim() || isGenerating}
                 size="icon"
                 className="shrink-0 bg-ai text-white hover:bg-ai/90"
                 aria-label="Send message"

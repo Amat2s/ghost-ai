@@ -76,6 +76,7 @@ export function WorkspaceClient({
       <AiSidebar
         isOpen={isAiSidebarOpen}
         onClose={() => setIsAiSidebarOpen(false)}
+        projectId={project.id}
       />
 
       <CreateProjectDialog

@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLiveblocksFlow } from "@liveblocks/react-flow";
-import { useUndo, useRedo, useCanUndo, useCanRedo, useUpdateMyPresence } from "@liveblocks/react";
+import { useUndo, useRedo, useCanUndo, useCanRedo, useUpdateMyPresence, useEventListener } from "@liveblocks/react";
 import {
   ReactFlow,
   Background,
@@ -110,15 +110,21 @@ function ControlBar({ undo, redo, canUndo, canRedo }: ControlBarProps) {
   );
 }
 
+interface AiStatus {
+  message: string;
+  isError: boolean;
+}
+
 interface CanvasProps {
   projectId: string;
   saveRequestId?: number;
   pendingTemplate?: CanvasTemplate | null;
   onTemplateDone?: () => void;
   onSaveStatusChange?: (status: SaveStatus) => void;
+  onAiEvent?: (event: { type: string; message?: string; error?: string }) => void;
 }
 
-export function Canvas({ projectId, saveRequestId, pendingTemplate, onTemplateDone, onSaveStatusChange }: CanvasProps) {
+export function Canvas({ projectId, saveRequestId, pendingTemplate, onTemplateDone, onSaveStatusChange, onAiEvent }: CanvasProps) {
   const { nodes, edges, onNodesChange, onEdgesChange, onConnect, onDelete } =
     useLiveblocksFlow<CanvasNode, CanvasEdge>({ suspense: true });
 
@@ -130,6 +136,25 @@ export function Canvas({ projectId, saveRequestId, pendingTemplate, onTemplateDo
   const updatePresence = useUpdateMyPresence();
 
   useKeyboardShortcuts(flow, undo, redo);
+
+  const [aiStatus, setAiStatus] = useState<AiStatus | null>(null);
+
+  useEventListener(({ event }) => {
+    if (event.type === "AI_STARTED") {
+      setAiStatus({ message: event.message, isError: false });
+      onAiEvent?.({ type: event.type, message: event.message });
+    } else if (event.type === "AI_STATUS") {
+      setAiStatus({ message: event.message, isError: false });
+      onAiEvent?.({ type: event.type, message: event.message });
+    } else if (event.type === "AI_COMPLETED") {
+      setAiStatus(null);
+      onAiEvent?.({ type: event.type, message: event.message });
+    } else if (event.type === "AI_ERROR") {
+      setAiStatus({ message: event.error, isError: true });
+      onAiEvent?.({ type: event.type, error: event.error });
+      setTimeout(() => setAiStatus(null), 5000);
+    }
+  });
 
   const { save, saveStatus, resetIfSaved } = useCanvasSave(projectId);
   useEffect(() => { onSaveStatusChange?.(saveStatus); }, [saveStatus, onSaveStatusChange]);
@@ -289,6 +314,22 @@ export function Canvas({ projectId, saveRequestId, pendingTemplate, onTemplateDo
       fitView
     >
       <Background variant={BackgroundVariant.Dots} />
+      {aiStatus && (
+        <Panel position="top-center">
+          <div
+            className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium shadow-lg ${
+              aiStatus.isError
+                ? "border-red-500/30 bg-surface text-red-400"
+                : "border-ai/30 bg-surface text-ai-text"
+            }`}
+          >
+            {!aiStatus.isError && (
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-ai" />
+            )}
+            {aiStatus.message}
+          </div>
+        </Panel>
+      )}
       <LiveCursors />
       <Panel position="top-right" style={{ margin: 8 }}>
         <PresenceAvatars />
