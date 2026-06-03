@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { useLiveblocksFlow } from "@liveblocks/react-flow";
-import { useUndo, useRedo, useCanUndo, useCanRedo } from "@liveblocks/react";
+import { useUndo, useRedo, useCanUndo, useCanRedo, useUpdateMyPresence } from "@liveblocks/react";
 import {
   ReactFlow,
   Background,
@@ -21,8 +21,12 @@ import { NODE_COLORS } from "@/types/canvas";
 import { CanvasNodeComponent } from "./canvas-node";
 import { CanvasEdgeComponent } from "./canvas-edge";
 import { ShapePanel } from "./shape-panel";
+import { PresenceAvatars } from "./presence-avatars";
+import { LiveCursors } from "./live-cursors";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useCanvasSave } from "@/hooks/use-canvas-autosave";
 import type { CanvasTemplate } from "./starter-templates";
+import type { SaveStatus } from "@/hooks/use-canvas-autosave";
 
 const nodeTypes: NodeTypes = {
   canvasNode: CanvasNodeComponent,
@@ -107,11 +111,14 @@ function ControlBar({ undo, redo, canUndo, canRedo }: ControlBarProps) {
 }
 
 interface CanvasProps {
+  projectId: string;
+  saveRequestId?: number;
   pendingTemplate?: CanvasTemplate | null;
   onTemplateDone?: () => void;
+  onSaveStatusChange?: (status: SaveStatus) => void;
 }
 
-export function Canvas({ pendingTemplate, onTemplateDone }: CanvasProps) {
+export function Canvas({ projectId, saveRequestId, pendingTemplate, onTemplateDone, onSaveStatusChange }: CanvasProps) {
   const { nodes, edges, onNodesChange, onEdgesChange, onConnect, onDelete } =
     useLiveblocksFlow<CanvasNode, CanvasEdge>({ suspense: true });
 
@@ -120,13 +127,66 @@ export function Canvas({ pendingTemplate, onTemplateDone }: CanvasProps) {
   const redo = useRedo();
   const canUndo = useCanUndo();
   const canRedo = useCanRedo();
+  const updatePresence = useUpdateMyPresence();
 
   useKeyboardShortcuts(flow, undo, redo);
+
+  const { save, saveStatus, resetIfSaved } = useCanvasSave(projectId);
+  useEffect(() => { onSaveStatusChange?.(saveStatus); }, [saveStatus, onSaveStatusChange]);
+
+  const contentFingerprintRef = useRef<string | null>(null);
+  useEffect(() => {
+    const fp = [
+      nodes.map(({ id, position, width, height, data }) =>
+        `${id}:${position.x},${position.y},${width},${height},${JSON.stringify(data)}`
+      ).sort().join("|"),
+      edges.map(({ id, source, target, sourceHandle, targetHandle, data }) =>
+        `${id}:${source}->${target}(${sourceHandle ?? ""},${targetHandle ?? ""}),${JSON.stringify(data)}`
+      ).sort().join("|"),
+    ].join("||");
+
+    if (contentFingerprintRef.current !== null && fp !== contentFingerprintRef.current) {
+      resetIfSaved();
+    }
+    contentFingerprintRef.current = fp;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes, edges]);
 
   const stateRef = useRef({ nodes, edges, onNodesChange, onEdgesChange });
   useEffect(() => {
     stateRef.current = { nodes, edges, onNodesChange, onEdgesChange };
   });
+
+  useEffect(() => {
+    if (!saveRequestId) return;
+    save(stateRef.current.nodes, stateRef.current.edges);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saveRequestId]);
+
+  // Load saved canvas state into an empty room on first mount
+  const hasLoaded = useRef(false);
+  useEffect(() => {
+    if (hasLoaded.current) return;
+    if (nodes.length > 0 || edges.length > 0) {
+      hasLoaded.current = true;
+      return;
+    }
+    hasLoaded.current = true;
+    fetch(`/api/projects/${projectId}/canvas`)
+      .then(async (res) => {
+        if (res.status === 204 || !res.ok) return;
+        const data = await res.json() as { nodes?: CanvasNode[]; edges?: CanvasEdge[] };
+        const savedNodes = data.nodes ?? [];
+        const savedEdges = data.edges ?? [];
+        if (savedNodes.length === 0 && savedEdges.length === 0) return;
+        const { onNodesChange: onNC, onEdgesChange: onEC } = stateRef.current;
+        onNC(savedNodes.map((n) => ({ type: "add" as const, item: n })));
+        onEC(savedEdges.map((e) => ({ type: "add" as const, item: e })));
+        setTimeout(() => flow.fitView({ duration: 300 }), 80);
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!pendingTemplate) return;
@@ -199,6 +259,18 @@ export function Canvas({ pendingTemplate, onTemplateDone }: CanvasProps) {
     [flow, onNodesChange],
   );
 
+  useEffect(() => {
+    const handlePointerMove = (e: PointerEvent) => {
+      updatePresence({ cursor: flow.screenToFlowPosition({ x: e.clientX, y: e.clientY }) });
+    };
+    window.addEventListener("pointermove", handlePointerMove);
+    return () => window.removeEventListener("pointermove", handlePointerMove);
+  }, [flow, updatePresence]);
+
+  const onMouseLeave = useCallback(() => {
+    updatePresence({ cursor: null });
+  }, [updatePresence]);
+
   return (
     <ReactFlow
       nodes={nodes}
@@ -213,9 +285,14 @@ export function Canvas({ pendingTemplate, onTemplateDone }: CanvasProps) {
       connectionMode={ConnectionMode.Loose}
       onDragOver={onDragOver}
       onDrop={onDrop}
+      onMouseLeave={onMouseLeave}
       fitView
     >
       <Background variant={BackgroundVariant.Dots} />
+      <LiveCursors />
+      <Panel position="top-right" style={{ margin: 8 }}>
+        <PresenceAvatars />
+      </Panel>
       <Panel position="bottom-left">
         <ControlBar
           undo={undo}

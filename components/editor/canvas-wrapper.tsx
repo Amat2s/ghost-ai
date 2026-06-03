@@ -5,24 +5,33 @@ import { LiveblocksProvider, RoomProvider, ClientSideSuspense } from "@liveblock
 import { ReactFlowProvider } from "@xyflow/react"
 import { Canvas } from "./canvas"
 import type { CanvasTemplate } from "./starter-templates"
+import type { SaveStatus } from "@/hooks/use-canvas-autosave"
 
 interface CanvasWrapperProps {
   roomId: string
+  saveRequestId?: number
   pendingTemplate?: CanvasTemplate | null
   onTemplateDone?: () => void
+  onSaveStatusChange?: (status: SaveStatus) => void
 }
 
-export function CanvasWrapper({ roomId, pendingTemplate, onTemplateDone }: CanvasWrapperProps) {
+export function CanvasWrapper({ roomId, saveRequestId, pendingTemplate, onTemplateDone, onSaveStatusChange }: CanvasWrapperProps) {
   return (
     <LiveblocksProvider authEndpoint="/api/liveblocks-auth">
       <RoomProvider
         id={roomId}
-        initialPresence={{ cursor: null, isThinking: false }}
+        initialPresence={{ cursor: null, thinking: false }}
       >
         <ErrorBoundary fallback={<CanvasError />}>
           <ClientSideSuspense fallback={<CanvasLoading />}>
             <ReactFlowProvider>
-              <Canvas pendingTemplate={pendingTemplate} onTemplateDone={onTemplateDone} />
+              <Canvas
+                projectId={roomId}
+                saveRequestId={saveRequestId}
+                pendingTemplate={pendingTemplate}
+                onTemplateDone={onTemplateDone}
+                onSaveStatusChange={onSaveStatusChange}
+              />
             </ReactFlowProvider>
           </ClientSideSuspense>
         </ErrorBoundary>

@@ -1,8 +1,9 @@
 "use client"
 
-import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Share2, LayoutTemplate } from "lucide-react"
+import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Share2, LayoutTemplate, CheckCircle2, Loader2, AlertCircle, Save } from "lucide-react"
 import { UserButton } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
+import type { SaveStatus } from "@/hooks/use-canvas-autosave"
 
 interface EditorNavbarProps {
   isSidebarOpen: boolean
@@ -12,6 +13,8 @@ interface EditorNavbarProps {
   onToggleAiSidebar?: () => void
   onShare?: () => void
   onOpenTemplates?: () => void
+  onSave?: () => void
+  saveStatus?: SaveStatus
 }
 
 export function EditorNavbar({
@@ -22,7 +25,11 @@ export function EditorNavbar({
   onToggleAiSidebar,
   onShare,
   onOpenTemplates,
+  onSave,
+  saveStatus = "idle",
 }: EditorNavbarProps) {
+  const isSaving = saveStatus === "saving"
+
   return (
     <header className="fixed top-0 left-0 right-0 z-40 flex h-12 items-center bg-surface border-b border-surface-border px-3">
       <div className="flex items-center">
@@ -48,6 +55,23 @@ export function EditorNavbar({
       <div className="flex items-center gap-1">
         {onToggleAiSidebar && (
           <>
+            {onSave && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onSave}
+                disabled={isSaving}
+                aria-label="Save"
+              >
+                {saveStatus === "saving" && <Loader2 className="h-4 w-4 animate-spin" />}
+                {saveStatus === "saved" && <CheckCircle2 className="h-4 w-4 text-brand" />}
+                {saveStatus === "error" && <AlertCircle className="h-4 w-4 text-red-400" />}
+                {saveStatus === "idle" && <Save className="h-4 w-4" />}
+                <span className={saveStatus === "error" ? "text-red-400" : ""}>
+                  {saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "Saved" : saveStatus === "error" ? "Save failed" : "Save"}
+                </span>
+              </Button>
+            )}
             {onOpenTemplates && (
               <Button variant="ghost" size="sm" onClick={onOpenTemplates} aria-label="Templates">
                 <LayoutTemplate className="h-4 w-4" />

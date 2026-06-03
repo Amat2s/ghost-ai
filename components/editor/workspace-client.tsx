@@ -11,9 +11,11 @@ import {
 import { ShareDialog } from "@/components/editor/share-dialog"
 import { CanvasWrapper } from "@/components/editor/canvas-wrapper"
 import { StarterTemplatesModal } from "@/components/editor/starter-templates-modal"
+import { AiSidebar } from "@/components/editor/ai-sidebar"
 import { useProjectActions } from "@/hooks/use-project-actions"
 import type { ProjectData } from "@/lib/projects"
 import type { CanvasTemplate } from "@/components/editor/starter-templates"
+import type { SaveStatus } from "@/hooks/use-canvas-autosave"
 
 interface WorkspaceClientProps {
   project: ProjectData
@@ -33,6 +35,8 @@ export function WorkspaceClient({
   const [isShareOpen, setIsShareOpen] = useState(false)
   const [isTemplatesOpen, setIsTemplatesOpen] = useState(false)
   const [pendingTemplate, setPendingTemplate] = useState<CanvasTemplate | null>(null)
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle")
+  const [saveRequestId, setSaveRequestId] = useState(0)
   const actions = useProjectActions()
 
   return (
@@ -45,6 +49,8 @@ export function WorkspaceClient({
         onToggleAiSidebar={() => setIsAiSidebarOpen((prev) => !prev)}
         onShare={() => setIsShareOpen(true)}
         onOpenTemplates={() => setIsTemplatesOpen(true)}
+        onSave={() => setSaveRequestId((n) => n + 1)}
+        saveStatus={saveStatus}
       />
       <ProjectSidebar
         isOpen={isSidebarOpen}
@@ -60,16 +66,17 @@ export function WorkspaceClient({
         <main className="flex flex-1 overflow-hidden bg-base">
           <CanvasWrapper
             roomId={project.id}
+            saveRequestId={saveRequestId}
             pendingTemplate={pendingTemplate}
             onTemplateDone={() => setPendingTemplate(null)}
+            onSaveStatusChange={setSaveStatus}
           />
         </main>
-        {isAiSidebarOpen && (
-          <aside className="flex w-80 shrink-0 items-center justify-center border-l border-surface-border bg-elevated">
-            <p className="text-sm text-copy-muted">AI chat coming soon</p>
-          </aside>
-        )}
       </div>
+      <AiSidebar
+        isOpen={isAiSidebarOpen}
+        onClose={() => setIsAiSidebarOpen(false)}
+      />
 
       <CreateProjectDialog
         open={actions.openDialog === "create"}
