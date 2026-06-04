@@ -1,7 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { tasks } from '@trigger.dev/sdk'
+import { tasks, auth as triggerAuth } from '@trigger.dev/sdk'
 import type { designAgent } from '@/trigger/design-agent'
 import { prisma } from '@/lib/prisma'
 
@@ -42,5 +42,10 @@ export async function POST(request: NextRequest) {
     },
   })
 
-  return NextResponse.json({ runId: handle.id })
+  const publicToken = await triggerAuth.createPublicToken({
+    scopes: { read: { runs: [handle.id] } },
+    expirationTime: '1h',
+  })
+
+  return NextResponse.json({ runId: handle.id, publicToken })
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import { Component, type ReactNode } from "react"
-import { LiveblocksProvider, RoomProvider, ClientSideSuspense } from "@liveblocks/react"
+import { ClientSideSuspense } from "@liveblocks/react"
 import { ReactFlowProvider } from "@xyflow/react"
 import { Canvas } from "./canvas"
 import type { CanvasTemplate } from "./starter-templates"
@@ -18,27 +18,20 @@ interface CanvasWrapperProps {
 
 export function CanvasWrapper({ roomId, saveRequestId, pendingTemplate, onTemplateDone, onSaveStatusChange, onAiEvent }: CanvasWrapperProps) {
   return (
-    <LiveblocksProvider authEndpoint="/api/liveblocks-auth">
-      <RoomProvider
-        id={roomId}
-        initialPresence={{ cursor: null, thinking: false }}
-      >
-        <ErrorBoundary fallback={<CanvasError />}>
-          <ClientSideSuspense fallback={<CanvasLoading />}>
-            <ReactFlowProvider>
-              <Canvas
-                projectId={roomId}
-                saveRequestId={saveRequestId}
-                pendingTemplate={pendingTemplate}
-                onTemplateDone={onTemplateDone}
-                onSaveStatusChange={onSaveStatusChange}
-                onAiEvent={onAiEvent}
-              />
-            </ReactFlowProvider>
-          </ClientSideSuspense>
-        </ErrorBoundary>
-      </RoomProvider>
-    </LiveblocksProvider>
+    <ErrorBoundary fallback={<CanvasError />}>
+      <ClientSideSuspense fallback={<CanvasLoading />}>
+        <ReactFlowProvider>
+          <Canvas
+            projectId={roomId}
+            saveRequestId={saveRequestId}
+            pendingTemplate={pendingTemplate}
+            onTemplateDone={onTemplateDone}
+            onSaveStatusChange={onSaveStatusChange}
+            onAiEvent={onAiEvent}
+          />
+        </ReactFlowProvider>
+      </ClientSideSuspense>
+    </ErrorBoundary>
   )
 }
 

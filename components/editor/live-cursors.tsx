@@ -8,9 +8,10 @@ interface CursorMarkerProps {
   screenY: number
   name: string
   color: string
+  thinking: boolean
 }
 
-function CursorMarker({ screenX, screenY, name, color }: CursorMarkerProps) {
+function CursorMarker({ screenX, screenY, name, color, thinking }: CursorMarkerProps) {
   return (
     <div
       className="pointer-events-none absolute left-0 top-0"
@@ -25,12 +26,38 @@ function CursorMarker({ screenX, screenY, name, color }: CursorMarkerProps) {
         />
       </svg>
       <div
-        className="absolute left-4 top-3.5 whitespace-nowrap rounded px-1.5 py-0.5 text-[11px] font-medium leading-none text-white"
+        className="absolute left-4 top-3.5 flex items-center gap-1 whitespace-nowrap rounded px-1.5 py-0.5 text-[11px] font-medium leading-none text-white"
         style={{ backgroundColor: color }}
       >
+        {thinking && <ThinkingSpinner />}
         {name}
       </div>
     </div>
+  )
+}
+
+function ThinkingSpinner() {
+  return (
+    <svg
+      className="h-2.5 w-2.5 animate-spin"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+      />
+    </svg>
   )
 }
 
@@ -53,6 +80,7 @@ export function LiveCursors() {
             screenY={y * zoom + vpY}
             name={other.info?.name ?? "Unknown"}
             color={other.info?.color ?? "#888888"}
+            thinking={other.presence.thinking ?? false}
           />
         )
       })}

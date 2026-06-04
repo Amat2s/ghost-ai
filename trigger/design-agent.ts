@@ -1,6 +1,6 @@
 import { task } from "@trigger.dev/sdk"
 import { generateObject } from "ai"
-import { google } from "@ai-sdk/google"
+import { createOpenAI } from "@ai-sdk/openai"
 import { z } from "zod"
 import { getLiveblocks } from "@/lib/liveblocks"
 import { LiveObject, LiveMap } from "@liveblocks/node"
@@ -80,6 +80,18 @@ const CanvasOperationSchema = z.discriminatedUnion("action", [
   }),
 ])
 
+async function safeBroadcast(
+  lb: ReturnType<typeof getLiveblocks>,
+  roomId: string,
+  event: Parameters<ReturnType<typeof getLiveblocks>["broadcastEvent"]>[1],
+) {
+  try {
+    await lb.broadcastEvent(roomId, event)
+  } catch (e) {
+    console.warn("broadcastEvent failed (non-fatal):", e)
+  }
+}
+
 export const designAgent = task({
   id: "design-agent",
   retry: {
@@ -92,13 +104,13 @@ export const designAgent = task({
     const { prompt, roomId } = payload
     const lb = getLiveblocks()
 
-    await lb.broadcastEvent(roomId, {
+    await safeBroadcast(lb, roomId, {
       type: "AI_STARTED",
       message: "Ghost AI is analyzing your request…",
     })
 
     try {
-      // Read the current canvas state to give Gemini context
+      // Read the current canvas state to give the model context
       let existingNodes: unknown[] = []
       let existingEdges: unknown[] = []
       try {
@@ -114,7 +126,7 @@ export const designAgent = task({
         // Room storage not yet initialized — canvas is empty
       }
 
-      await lb.broadcastEvent(roomId, {
+      await safeBroadcast(lb, roomId, {
         type: "AI_STATUS",
         message: "Generating architecture design…",
       })
@@ -143,15 +155,26 @@ ${existingEdges.length > 0 ? "Edges: " + JSON.stringify(existingEdges) : ""}
 Generate operations to fulfill the user request. Prefer add_node and add_edge for new designs. Use move/resize/update/delete only when modifying existing nodes.`
 
       const { object } = await generateObject({
-        model: google("gemini-2.0-flash"),
+        model: createOpenAI({
+          baseURL: "https://openrouter.ai/api/v1",
+          apiKey: process.env.OPENROUTER_API_KEY,
+          headers: {
+            "HTTP-Referer": "http://localhost:3000",
+            "X-Title": "ghost-ai",
+          },
+        }).chat("openai/gpt-4o-mini"),
         schema: z.object({
           operations: z.array(CanvasOperationSchema),
         }),
+        providerOptions: {
+          openai: { strictJsonSchema: false },
+        },
         system: systemPrompt,
         prompt,
+        maxRetries: 0,
       })
 
-      await lb.broadcastEvent(roomId, {
+      await safeBroadcast(lb, roomId, {
         type: "AI_STATUS",
         message: `Applying ${object.operations.length} changes to canvas…`,
       })
@@ -241,7 +264,7 @@ Generate operations to fulfill the user request. Prefer add_node and add_edge fo
         }
       })
 
-      await lb.broadcastEvent(roomId, {
+      await safeBroadcast(lb, roomId, {
         type: "AI_COMPLETED",
         message: "Design complete! Your architecture is ready.",
       })
@@ -254,7 +277,7 @@ Generate operations to fulfill the user request. Prefer add_node and add_edge fo
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : "An unexpected error occurred"
-      await lb.broadcastEvent(roomId, {
+      await safeBroadcast(lb, roomId, {
         type: "AI_ERROR",
         error: `Design generation failed: ${msg}`,
       })

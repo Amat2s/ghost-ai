@@ -51,3 +51,7 @@ All packages are already installed.`GOOGLE_AI_API_KEY` is already in `.env.local
 - Status messages reflect task progress.
 - Errors are handled without breaking the canvas.
 - `npm run build` passes.
+
+## UPDATE
+
+The model being used now is no longer `gemini-2.0-flash` from Google AI Studio, but `openai/gpt-4o-mini` from Open Router
