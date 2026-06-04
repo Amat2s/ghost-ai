@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import ReactMarkdown from "react-markdown"
 import {
   useUpdateMyPresence,
   useOthers,
@@ -13,6 +15,7 @@ import {
   useCreateFeed,
   useCreateFeedMessage,
   useFeedMessages,
+  useStorage,
 } from "@liveblocks/react"
 import { useRealtimeRun } from "@trigger.dev/react-hooks"
 import type { RealtimeRun, AnyTask } from "@trigger.dev/core/v3"
@@ -41,6 +44,12 @@ interface AiSidebarProps {
   projectId: string
 }
 
+interface ProjectSpec {
+  id: string
+  createdAt: string
+  filePath: string
+}
+
 const STARTER_CHIPS = [
   "Design an e-commerce backend",
   "Create a chat app architecture",
@@ -62,6 +71,15 @@ export function AiSidebar({ isOpen, onClose, projectId }: AiSidebarProps) {
   const [chatInput, setChatInput] = useState("")
   const [chatSendError, setChatSendError] = useState<string | null>(null)
   const [isSendingChat, setIsSendingChat] = useState(false)
+  const [specs, setSpecs] = useState<ProjectSpec[]>([])
+  const [specsLoading, setSpecsLoading] = useState(false)
+  const [previewSpec, setPreviewSpec] = useState<ProjectSpec | null>(null)
+  const [previewContent, setPreviewContent] = useState<string | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [isGeneratingSpec, setIsGeneratingSpec] = useState(false)
+  const [specRunId, setSpecRunId] = useState<string | undefined>(undefined)
+  const [specToken, setSpecToken] = useState<string | undefined>(undefined)
+  const [specError, setSpecError] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const chatTextareaRef = useRef<HTMLTextAreaElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -75,6 +93,18 @@ export function AiSidebar({ isOpen, onClose, projectId }: AiSidebarProps) {
   const { messages: feedMessages } = useFeedMessages(AI_STATUS_FEED)
   const { messages: chatFeedMessages } = useFeedMessages(AI_CHAT_FEED)
 
+  // Read canvas state from Liveblocks storage for spec generation.
+  // Storage stores nodes/edges as LiveMap (keyed by id), so we use Object.values to get arrays.
+  type FlowStorage = { flow?: { nodes?: Record<string, unknown>; edges?: Record<string, unknown> } }
+  const flowNodes = useStorage((root) => {
+    const flow = ((root as unknown) as FlowStorage).flow
+    return flow?.nodes ? Object.values(flow.nodes) : []
+  }) ?? []
+  const flowEdges = useStorage((root) => {
+    const flow = ((root as unknown) as FlowStorage).flow
+    return flow?.edges ? Object.values(flow.edges) : []
+  }) ?? []
+
   // Stable ref so onComplete never causes the hook to resubscribe
   const onCompleteRef = useRef<((run: RealtimeRun<AnyTask>, err?: Error) => void) | undefined>(undefined)
 
@@ -85,6 +115,28 @@ export function AiSidebar({ isOpen, onClose, projectId }: AiSidebarProps) {
       onCompleteRef.current?.(run, err)
     }, []),
   })
+
+  const { run: specRealtimeRun } = useRealtimeRun(specRunId, {
+    accessToken: specToken,
+    enabled: !!specRunId && !!specToken,
+  })
+
+  useEffect(() => {
+    if (!specRealtimeRun) return
+    const { status } = specRealtimeRun
+    const terminal = ["COMPLETED", "FAILED", "CRASHED", "CANCELED", "TIMED_OUT", "SYSTEM_FAILURE", "EXPIRED"]
+    if (!terminal.includes(status)) return
+    if (status === "COMPLETED") {
+      void fetchSpecs()
+      setSpecError(null)
+    } else {
+      setSpecError("Spec generation failed. Please try again.")
+    }
+    setIsGeneratingSpec(false)
+    setSpecRunId(undefined)
+    setSpecToken(undefined)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [specRealtimeRun?.status])
 
   // Latest validated status feed message
   const latestFeedMsg = feedMessages?.[feedMessages.length - 1]
@@ -111,6 +163,102 @@ export function AiSidebar({ isOpen, onClose, projectId }: AiSidebarProps) {
     const el = chatScrollRef.current
     if (el) el.scrollTop = el.scrollHeight
   }, [chatMessages.length])
+
+  const fetchSpecs = useCallback(async () => {
+    setSpecsLoading(true)
+    try {
+      const res = await fetch(`/api/projects/${projectId}/specs`)
+      if (res.ok) {
+        const data = await res.json() as ProjectSpec[]
+        setSpecs(data)
+      }
+    } finally {
+      setSpecsLoading(false)
+    }
+  }, [projectId])
+
+  useEffect(() => {
+    if (isOpen) void fetchSpecs()
+  }, [isOpen, fetchSpecs])
+
+  const handleGenerateSpec = useCallback(async () => {
+    if (isGeneratingSpec) return
+    setIsGeneratingSpec(true)
+    setSpecError(null)
+
+    const chatHistory = messages
+      .filter((m) => !m.isStatus && !m.isError)
+      .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }))
+
+    const res = await fetch("/api/ai/spec", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roomId: projectId, chatHistory, nodes: flowNodes, edges: flowEdges }),
+    })
+    const data = await res.json() as Record<string, unknown>
+
+    if (!res.ok) {
+      setSpecError(`Failed to start: ${String(data.error ?? "Request failed")}`)
+      setIsGeneratingSpec(false)
+      return
+    }
+
+    const { runId: newRunId } = data as { runId: string }
+
+    const tokenRes = await fetch("/api/ai/spec/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ runId: newRunId }),
+    })
+    const tokenData = await tokenRes.json() as Record<string, unknown>
+
+    if (!tokenRes.ok) {
+      setSpecError("Failed to authenticate spec run.")
+      setIsGeneratingSpec(false)
+      return
+    }
+
+    setSpecRunId(newRunId)
+    setSpecToken((tokenData as { token: string }).token)
+  }, [isGeneratingSpec, projectId, messages, flowNodes, flowEdges])
+
+  const openPreview = useCallback(async (spec: ProjectSpec) => {
+    setPreviewSpec(spec)
+    setPreviewContent(null)
+    setPreviewLoading(true)
+    try {
+      const res = await fetch(`/api/projects/${projectId}/specs/${spec.id}/download`)
+      if (res.ok) setPreviewContent(await res.text())
+    } finally {
+      setPreviewLoading(false)
+    }
+  }, [projectId])
+
+  const handleDownload = useCallback(async (spec: ProjectSpec) => {
+    const res = await fetch(`/api/projects/${projectId}/specs/${spec.id}/download`)
+    if (!res.ok) return
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    const filename = spec.filePath.split("/").pop() ?? `spec-${spec.id}.md`
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }, [projectId])
+
+  function formatDate(iso: string) {
+    return new Date(iso).toLocaleString([], {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }
+
+  function filenameFromPath(filePath: string) {
+    return filePath.split("/").pop() ?? "spec.md"
+  }
 
   const addMessage = useCallback((msg: Omit<Message, "id">) => {
     setMessages((prev) => [...prev, { ...msg, id: `${Date.now()}-${Math.random()}` }])
@@ -492,40 +640,139 @@ export function AiSidebar({ isOpen, onClose, projectId }: AiSidebarProps) {
 
         {/* Specs tab */}
         <TabsContent value="specs" className="flex flex-1 flex-col overflow-hidden mt-0">
-          <div className="flex flex-col gap-4 px-4 pt-3">
-            <Button className="w-full bg-ai text-white hover:bg-ai/90">
-              Generate Spec
+          <div className="shrink-0 px-4 pt-3 pb-2 flex flex-col gap-2">
+            <Button
+              onClick={() => void handleGenerateSpec()}
+              disabled={isGeneratingSpec}
+              className="w-full bg-ai text-white hover:bg-ai/90 disabled:opacity-50 gap-2"
+            >
+              {isGeneratingSpec ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Generating…
+                </>
+              ) : (
+                "Generate Spec"
+              )}
             </Button>
-            <div className="rounded-xl bg-elevated border border-surface-border p-4">
-              <div className="flex items-start gap-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-subtle">
-                  <FileText className="h-4 w-4 text-copy-muted" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-copy-primary truncate">
-                    API Architecture Spec
-                  </p>
-                  <p className="mt-0.5 text-xs text-copy-muted line-clamp-2">
-                    Defines the RESTful API surface, authentication flow, and service
-                    boundaries for the e-commerce backend system.
-                  </p>
-                </div>
-              </div>
-              <div className="mt-3 flex justify-end">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled
-                  className="gap-1.5 text-copy-muted opacity-50"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  Download
-                </Button>
-              </div>
-            </div>
+            {specError && (
+              <p className="text-xs text-red-400">{specError}</p>
+            )}
           </div>
+          <ScrollArea className="flex-1 px-4 py-2">
+            {specsLoading ? (
+              <div className="flex items-center justify-center py-10">
+                <Loader2 className="h-5 w-5 animate-spin text-copy-muted" />
+              </div>
+            ) : specs.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 pt-8 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-subtle">
+                  <FileText className="h-6 w-6 text-copy-muted" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-copy-primary">No specs yet</p>
+                  <p className="mt-1 text-xs text-copy-muted">
+                    Generate a spec from the Architect tab.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {specs.map((spec) => (
+                  <div
+                    key={spec.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => void openPreview(spec)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); void openPreview(spec) } }}
+                    className="w-full rounded-xl bg-elevated border border-surface-border p-3 text-left hover:border-brand/40 transition-colors group cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-subtle">
+                        <FileText className="h-3.5 w-3.5 text-copy-muted" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-copy-primary truncate">
+                          {filenameFromPath(spec.filePath)}
+                        </p>
+                        <p className="text-[10px] text-copy-muted mt-0.5">
+                          {formatDate(spec.createdAt)}
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); void handleDownload(spec) }}
+                        className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-subtle"
+                        aria-label="Download spec"
+                      >
+                        <Download className="h-3.5 w-3.5 text-copy-muted" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
         </TabsContent>
       </Tabs>
+
+      {/* Spec preview modal */}
+      <Dialog open={!!previewSpec} onOpenChange={(open) => { if (!open) { setPreviewSpec(null); setPreviewContent(null) } }}>
+        <DialogContent className="max-w-2xl h-[80vh] flex flex-col gap-0 p-0 bg-elevated border-surface-border rounded-3xl overflow-hidden">
+          <DialogHeader className="flex flex-row items-center justify-between px-5 py-4 border-b border-surface-border shrink-0">
+            <DialogTitle className="text-sm font-semibold text-copy-primary truncate">
+              {previewSpec ? filenameFromPath(previewSpec.filePath) : ""}
+            </DialogTitle>
+            {previewSpec && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => void handleDownload(previewSpec)}
+                className="shrink-0 gap-1.5 text-copy-muted hover:text-copy-primary"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Download
+              </Button>
+            )}
+          </DialogHeader>
+          <ScrollArea className="min-h-0 flex-1">
+            <div className="px-5 py-4">
+              {previewLoading ? (
+                <div className="flex items-center justify-center py-10">
+                  <Loader2 className="h-5 w-5 animate-spin text-copy-muted" />
+                </div>
+              ) : previewContent ? (
+                <ReactMarkdown
+                  components={{
+                    h1: ({ children }) => <h1 className="text-lg font-bold text-copy-primary mb-3 mt-5 first:mt-0 pb-2 border-b border-surface-border">{children}</h1>,
+                    h2: ({ children }) => <h2 className="text-base font-semibold text-copy-primary mb-2 mt-4 first:mt-0">{children}</h2>,
+                    h3: ({ children }) => <h3 className="text-sm font-semibold text-copy-primary mb-1.5 mt-3 first:mt-0">{children}</h3>,
+                    p: ({ children }) => <p className="text-sm text-copy-secondary leading-relaxed mb-3">{children}</p>,
+                    ul: ({ children }) => <ul className="list-disc list-inside mb-3 space-y-1">{children}</ul>,
+                    ol: ({ children }) => <ol className="list-decimal list-inside mb-3 space-y-1">{children}</ol>,
+                    li: ({ children }) => <li className="text-sm text-copy-secondary leading-relaxed">{children}</li>,
+                    strong: ({ children }) => <strong className="font-semibold text-copy-primary">{children}</strong>,
+                    em: ({ children }) => <em className="italic text-copy-muted">{children}</em>,
+                    code: ({ children, className }) => {
+                      const isBlock = !!className
+                      return isBlock
+                        ? <code className="block font-mono text-xs text-copy-primary">{children}</code>
+                        : <code className="font-mono text-xs bg-subtle border border-surface-border text-brand px-1 py-0.5 rounded">{children}</code>
+                    },
+                    pre: ({ children }) => <pre className="bg-subtle border border-surface-border rounded-xl p-4 mb-3 overflow-x-auto text-xs font-mono text-copy-primary">{children}</pre>,
+                    blockquote: ({ children }) => <blockquote className="border-l-2 border-brand/40 pl-4 mb-3 italic text-copy-muted">{children}</blockquote>,
+                    hr: () => <hr className="border-surface-border my-4" />,
+                    a: ({ href, children }) => <a href={href} className="text-brand underline hover:opacity-80" target="_blank" rel="noreferrer">{children}</a>,
+                  }}
+                >
+                  {previewContent}
+                </ReactMarkdown>
+              ) : (
+                <p className="text-sm text-copy-muted">Failed to load spec content.</p>
+              )}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </aside>
   )
 }
