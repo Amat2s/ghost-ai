@@ -25,10 +25,19 @@ declare global {
 }
 
 export function getLiveblocks(): Liveblocks {
-  if (!globalThis.__liveblocks) {
-    globalThis.__liveblocks = new Liveblocks({
-      secret: process.env.LIVEBLOCKS_SECRET_KEY!,
-    })
+  const secret = process.env.LIVEBLOCKS_SECRET_KEY;
+
+  if (!secret) {
+    throw new Error("LIVEBLOCKS_SECRET_KEY is missing in environment");
   }
-  return globalThis.__liveblocks
+
+  if (!secret.startsWith("sk_")) {
+    throw new Error("LIVEBLOCKS_SECRET_KEY is invalid (must start with sk_)");
+  }
+
+  if (!globalThis.__liveblocks) {
+    globalThis.__liveblocks = new Liveblocks({ secret });
+  }
+
+  return globalThis.__liveblocks;
 }
