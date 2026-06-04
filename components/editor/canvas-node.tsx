@@ -113,6 +113,7 @@ function NodeLabel({
         onBlur={onCommit}
         onKeyDown={(e) => {
           e.stopPropagation()
+          if (e.key === "Enter") onCommit()
           if (e.key === "Escape") onCancel()
         }}
         onMouseDown={(e) => e.stopPropagation()}

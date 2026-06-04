@@ -1,33 +1,37 @@
 "use client"
 
 import { Component, type ReactNode } from "react"
-import { LiveblocksProvider, RoomProvider, ClientSideSuspense } from "@liveblocks/react"
+import { ClientSideSuspense } from "@liveblocks/react"
 import { ReactFlowProvider } from "@xyflow/react"
 import { Canvas } from "./canvas"
 import type { CanvasTemplate } from "./starter-templates"
+import type { SaveStatus } from "@/hooks/use-canvas-autosave"
 
 interface CanvasWrapperProps {
   roomId: string
+  saveRequestId?: number
   pendingTemplate?: CanvasTemplate | null
   onTemplateDone?: () => void
+  onSaveStatusChange?: (status: SaveStatus) => void
+  onAiEvent?: (event: { type: string; message?: string; error?: string }) => void
 }
 
-export function CanvasWrapper({ roomId, pendingTemplate, onTemplateDone }: CanvasWrapperProps) {
+export function CanvasWrapper({ roomId, saveRequestId, pendingTemplate, onTemplateDone, onSaveStatusChange, onAiEvent }: CanvasWrapperProps) {
   return (
-    <LiveblocksProvider authEndpoint="/api/liveblocks-auth">
-      <RoomProvider
-        id={roomId}
-        initialPresence={{ cursor: null, isThinking: false }}
-      >
-        <ErrorBoundary fallback={<CanvasError />}>
-          <ClientSideSuspense fallback={<CanvasLoading />}>
-            <ReactFlowProvider>
-              <Canvas pendingTemplate={pendingTemplate} onTemplateDone={onTemplateDone} />
-            </ReactFlowProvider>
-          </ClientSideSuspense>
-        </ErrorBoundary>
-      </RoomProvider>
-    </LiveblocksProvider>
+    <ErrorBoundary fallback={<CanvasError />}>
+      <ClientSideSuspense fallback={<CanvasLoading />}>
+        <ReactFlowProvider>
+          <Canvas
+            projectId={roomId}
+            saveRequestId={saveRequestId}
+            pendingTemplate={pendingTemplate}
+            onTemplateDone={onTemplateDone}
+            onSaveStatusChange={onSaveStatusChange}
+            onAiEvent={onAiEvent}
+          />
+        </ReactFlowProvider>
+      </ClientSideSuspense>
+    </ErrorBoundary>
   )
 }
 
